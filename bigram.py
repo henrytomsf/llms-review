@@ -21,7 +21,9 @@ MAX_ITERS = 3000
 EVAL_INTERVAL = 300
 EVAL_ITERS = 200
 LEARNING_RATE = 1e-2
+N_EMB = 32
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 
 # Set seed
 torch.manual_seed(42)
@@ -35,7 +37,7 @@ def read_input_data() -> str:
 # Unique chars in the set
 text = read_input_data()
 chars = sorted(list(set(text)))
-vocab_size = len(chars)
+VOCAB_SIZE = len(chars)
 
 # Create tokenizer mappings (using the most basic tokenizer, can use other ones that tokenize at the part of word level)
 stoi = {ch:i for i, ch in enumerate(chars)}
@@ -81,14 +83,20 @@ def estimate_loss(model):
 
 # Define the bigram model that only predicts words given the previous word P(w_t | w_t-1)
 class BigramLanguageModel(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self):
         super().__init__()
         # Each token directly reads off the logits for the next token from a lookup embedding table that's initialized randomly (that needs to be trained)
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+        self.token_embedding_table = nn.Embedding(VOCAB_SIZE, N_EMB)
+        self.position_embedding_table = nn.Embedding(BLOCK_SIZE, N_EMB)
+        self.lm_head = nn.Linear(N_EMB, VOCAB_SIZE)
 
     def forward(self, idx, targets=None):
+        B, T = idx.shape
         # idx and targets are both (B, T) tensors of integers
-        logits = self.token_embedding_table(idx)  # (B,T,C) (batch, time or sequence_length, channel or number of classes or vocab size)
+        token_emb = self.token_embedding_table(idx)  # (B,T,C) (batch, time or sequence_length, channel or number of classes or vocab size)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=DEVICE))  # (T, C)
+        x = token_emb + pos_emb  # (B, T, C)
+        logits = self.lm_head(x)  # (B, T, vocab_size)
 
         if targets is None:
             loss = None
@@ -142,7 +150,7 @@ def train(model):
 
 if __name__ == '__main__':
     xb, yb = get_batch(split='train')
-    model = BigramLanguageModel(vocab_size=vocab_size)
+    model = BigramLanguageModel(VOCAB_SIZE=VOCAB_SIZE)
     model = model.to(DEVICE)
     logits, loss = model(xb, yb)
     print(loss)
