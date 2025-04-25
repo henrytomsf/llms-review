@@ -65,6 +65,7 @@ def get_batch(split: str):
 # no_grad since we want to disable gradient calcuations to save on memory/speed esp for evaluation or inference
 @torch.no_grad()
 def estimate_loss(model):
+    std_out = {}
     out = {}
     model.eval()
     for split in ['train', 'val']:
@@ -74,8 +75,9 @@ def estimate_loss(model):
             logits, loss = model(x, y)
             losses[k] = loss.item()
         out[split] = losses.mean()
+        std_out[split] = losses.std()
     model.train()
-    return out
+    return out, std_out
 
 # Define the bigram model that only predicts words given the previous word P(w_t | w_t-1)
 class BigramLanguageModel(nn.Module):
@@ -122,8 +124,8 @@ def train(model):
     for iter in range(MAX_ITERS):
         # Evaluate at intervals
         if iter % EVAL_INTERVAL == 0:
-            losses = estimate_loss(model)
-            print(f"Step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+            losses, std_losses = estimate_loss(model)
+            print(f"Step {iter}: train loss {losses['train']:.4f} +- {std_losses['train']:.2f}, val loss {losses['val']:.4f} +- {std_losses['val']:.2f}")
         
         # Sample batch of data to train
         xb, yb = get_batch('train')
