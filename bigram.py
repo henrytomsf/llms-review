@@ -141,6 +141,7 @@ def train(model):
 if __name__ == '__main__':
     xb, yb = get_batch(split='train')
     model = BigramLanguageModel(vocab_size=vocab_size)
+    model = model.to(DEVICE)
     logits, loss = model(xb, yb)
     print(loss)
 
@@ -148,6 +149,6 @@ if __name__ == '__main__':
     train(model)
 
     logger.info(f'Generating some text...')
-    idx = torch.zeros((1, 1), dtype=torch.long)
+    context = torch.zeros((1, 1), dtype=torch.long, device=DEVICE)
     # print(model.generate(idx, max_new_tokens=100)[0].tolist())
-    print(decode(model.generate(idx, max_new_tokens=100)[0].tolist()))
+    print(decode(model.generate(context, max_new_tokens=100)[0].tolist()))
