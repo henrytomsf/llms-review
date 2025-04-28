@@ -6,6 +6,7 @@ from torch.nn import functional as F
 torch.manual_seed(42)
 B, T, C = 4, 8, 32
 x = torch.randn(B, T, C)
+print(type(x))
 
 # Single head of self attention
 head_size = 16

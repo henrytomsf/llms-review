@@ -17,10 +17,10 @@ logger.addHandler(handler)
 # Hyperparameters
 BATCH_SIZE = 32
 BLOCK_SIZE = 8  # context size also called block size
-MAX_ITERS = 3000
+MAX_ITERS = 5000
 EVAL_INTERVAL = 300
 EVAL_ITERS = 200
-LEARNING_RATE = 1e-2
+LEARNING_RATE = 1e-3
 N_EMB = 32
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -81,6 +81,73 @@ def estimate_loss(model):
     model.train()
     return out, std_out
 
+
+class Head(nn.Module):
+    """A single head of self attention."""
+    def __init__(self, head_size: int):
+        super().__init__()
+        self.key = nn.Linear(N_EMB, head_size, bias=False)
+        self.query = nn.Linear(N_EMB, head_size, bias=False)
+        self.value = nn.Linear(N_EMB, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
+
+    def forward(self, x: torch.tensor):
+        B, T, C = x.shape
+        k = self.key(x)
+        q = self.query(x)
+
+        # Compute attention scores/affinities
+        wei = q @ k.transpose(-2, -1) * C**-0.5
+        wei = wei.masked_fill(self.tril[:T, :T]==0, float('-inf'))
+        wei = F.softmax(wei, dim=-1)
+
+        # Weighted aggregation of the values
+        v = self.value(x)
+        out = wei @ v
+        return out
+
+
+class MultiHeadAttention(nn.Module):
+    """Multiple heads of self attention."""
+    def __init__(self, num_heads: int, head_size: int):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(N_EMB, N_EMB)
+
+    def forward(self, x: torch.tensor):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.proj(out)
+        return out
+
+
+class FeedFoward(nn.Module):
+    def __init__(self, n_embd: int = N_EMB):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+        )
+
+    def forward(self, x: torch.tensor):
+        return self.net(x)
+
+
+class Block(nn.Module):
+    def __init__(self, n_embd: int, n_head: int):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size=head_size)
+        self.ffwd = FeedFoward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+    def forward(self, x: torch.tensor):
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
+
+
 # Define the bigram model that only predicts words given the previous word P(w_t | w_t-1)
 class BigramLanguageModel(nn.Module):
     def __init__(self):
@@ -88,6 +155,12 @@ class BigramLanguageModel(nn.Module):
         # Each token directly reads off the logits for the next token from a lookup embedding table that's initialized randomly (that needs to be trained)
         self.token_embedding_table = nn.Embedding(VOCAB_SIZE, N_EMB)
         self.position_embedding_table = nn.Embedding(BLOCK_SIZE, N_EMB)
+        self.blocks = nn.Sequential(
+            Block(n_embd=N_EMB, n_head=4),
+            Block(n_embd=N_EMB, n_head=4),
+            Block(n_embd=N_EMB, n_head=4),
+            nn.LayerNorm(N_EMB),
+        )
         self.lm_head = nn.Linear(N_EMB, VOCAB_SIZE)
 
     def forward(self, idx, targets=None):
@@ -96,6 +169,7 @@ class BigramLanguageModel(nn.Module):
         token_emb = self.token_embedding_table(idx)  # (B,T,C) (batch, time or sequence_length, channel or number of classes or vocab size)
         pos_emb = self.position_embedding_table(torch.arange(T, device=DEVICE))  # (T, C)
         x = token_emb + pos_emb  # (B, T, C)
+        x = self.blocks(x)  # (B, T, C)
         logits = self.lm_head(x)  # (B, T, vocab_size)
 
         if targets is None:
@@ -115,8 +189,10 @@ class BigramLanguageModel(nn.Module):
     def generate(self, idx, max_new_tokens):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
+            # Crop context idx to the last block_size tokens
+            idx_cond = idx[:, -BLOCK_SIZE:]
             # Get the predictrions
-            logits, loss = self(idx)
+            logits, loss = self(idx_cond)
             # Focus only on the last time step
             logits = logits[:, -1, :]  # beocmes (B, C)
             # Apply softmax to get probs
@@ -161,4 +237,4 @@ if __name__ == '__main__':
     logger.info(f'Generating some text...')
     context = torch.zeros((1, 1), dtype=torch.long, device=DEVICE)
     # print(model.generate(idx, max_new_tokens=100)[0].tolist())
-    print(decode(model.generate(context, max_new_tokens=100)[0].tolist()))
+    print(decode(model.generate(context, max_new_tokens=500)[0].tolist()))
