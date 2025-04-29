@@ -32,7 +32,7 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.manual_seed(42)
 
 def read_input_data() -> str:
-    with open('../data/input.txt', 'r', encoding='utf-8') as f:
+    with open('../data/linda.txt', 'r', encoding='utf-8') as f:
         text = f.read()
 
     return text
