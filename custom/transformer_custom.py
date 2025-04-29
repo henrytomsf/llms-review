@@ -18,13 +18,16 @@ logger.addHandler(handler)
 
 
 # Hyperparameters
-BATCH_SIZE = 32
-BLOCK_SIZE = 8  # context size also called block size
-MAX_ITERS = 1000
-EVAL_INTERVAL = 300
-EVAL_ITERS = 200
-LEARNING_RATE = 1e-3
-N_EMB = 32
+BATCH_SIZE = 64
+BLOCK_SIZE = 256  # context size also called block size
+MAX_ITERS = 5000
+EVAL_INTERVAL = 500
+EVAL_ITERS = 500
+LEARNING_RATE = 3e-4
+N_EMB = 384
+N_HEAD = 6
+N_LAYER = 6
+DROPOUT = 0.2
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
@@ -89,6 +92,7 @@ class Head(nn.Module):
         self.query = nn.Linear(N_EMB, head_size, bias=False)
         self.value = nn.Linear(N_EMB, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(BLOCK_SIZE, BLOCK_SIZE)))
+        self.dropout = nn.Dropout(DROPOUT)
 
     def forward(self, x: torch.tensor):
         B, T, C = x.shape
@@ -99,6 +103,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**-0.5
         wei = wei.masked_fill(self.tril[:T, :T]==0, float('-inf'))
         wei = F.softmax(wei, dim=-1)
+        wei = self.dropout(wei)
 
         # Weighted aggregation of the values
         v = self.value(x)
@@ -112,20 +117,23 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
         self.proj = nn.Linear(N_EMB, N_EMB)
+        self.dropout = nn.Dropout(DROPOUT)
 
     def forward(self, x: torch.tensor):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.proj(out)
+        out = self.dropout(out)
         return out
 
 
 class FeedFoward(nn.Module):
-    def __init__(self, n_embd: int = N_EMB):
+    def __init__(self, n_embd: int):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(DROPOUT),
         )
 
     def forward(self, x: torch.tensor):
@@ -154,12 +162,8 @@ class BigramLanguageModel(nn.Module):
         # Each token directly reads off the logits for the next token from a lookup embedding table that's initialized randomly (that needs to be trained)
         self.token_embedding_table = nn.Embedding(VOCAB_SIZE, N_EMB)
         self.position_embedding_table = nn.Embedding(BLOCK_SIZE, N_EMB)
-        self.blocks = nn.Sequential(
-            Block(n_embd=N_EMB, n_head=4),
-            Block(n_embd=N_EMB, n_head=4),
-            Block(n_embd=N_EMB, n_head=4),
-            nn.LayerNorm(N_EMB),
-        )
+        self.blocks = nn.Sequential(*[Block(n_embd=N_EMB, n_head=N_HEAD) for _ in range(N_LAYER)])
+        self.ln_f = nn.LayerNorm(N_EMB)
         self.lm_head = nn.Linear(N_EMB, VOCAB_SIZE)
 
     def forward(self, idx, targets=None):
