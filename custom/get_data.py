@@ -150,15 +150,16 @@ def combine_data(recent_messages, addressBookData):
 
 def filter_data(body_messages: List[str]):
     filtered_body_messages = []
-    for msg in body_messages:
-        if not msg.startswith('Loved '):
-            filtered_body_messages.append(msg)
-        elif not msg.startswith('Laughed at '):
-            filtered_body_messages.append(msg)
-        elif not msg.startswith('Liked '):
-            filtered_body_messages.append(msg)
+    for i,msg in enumerate(body_messages):
+        if msg.split()[0] not in ['Loved', 'Laughed', 'Liked'] and msg not in ['\n', ' ', '￼']:
+            filtered_body_messages.append(msg.strip().strip('￼'))
 
-    return filtered_body_messages
+    final_filtered_body_messages = []
+    for filtered_msg in filtered_body_messages:
+        if filtered_msg != '':
+            final_filtered_body_messages.append(filtered_msg)
+
+    return final_filtered_body_messages
 
 
 def create_data(
@@ -168,11 +169,11 @@ def create_data(
     recent_messages = read_messages(chatdb_location, num_messages, query=QUERY)
     body_messages = []
     for msg in recent_messages:
-        body_messages.append(msg['body'])
+        body_messages.append(msg['body'].strip())
 
     filtered_body_messages = filter_data(body_messages)
 
-    with open(outfile_name, 'w') as f:
+    with open(outfile_name, 'w', encoding='utf-8') as f:
         for msg in filtered_body_messages:
             f.write(f'{msg}\n')
 
