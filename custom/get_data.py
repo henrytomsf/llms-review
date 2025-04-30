@@ -153,9 +153,9 @@ def filter_data(body_messages: List[str]):
     for msg in body_messages:
         if not msg.startswith('Loved '):
             filtered_body_messages.append(msg)
-        if not msg.startswith('Laughed at '):
+        elif not msg.startswith('Laughed at '):
             filtered_body_messages.append(msg)
-        if not msg.startswith('Liked '):
+        elif not msg.startswith('Liked '):
             filtered_body_messages.append(msg)
 
     return filtered_body_messages
