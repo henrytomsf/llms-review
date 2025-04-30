@@ -11,6 +11,7 @@ SELECT message.ROWID, message.date, message.text, message.attributedBody, handle
 FROM message
 LEFT JOIN handle ON message.handle_id = handle.ROWID
 WHERE handle.id = 'REDACTED'
+    AND NOT is_from_me
 """
 
 def get_chat_mapping(chatdb_location: str):
@@ -147,17 +148,35 @@ def combine_data(recent_messages, addressBookData):
     return recent_messages
 
 
-def create_data(num_messages: int):
+def filter_data(body_messages: List[str]):
+    filtered_body_messages = []
+    for msg in body_messages:
+        if not msg.startswith('Loved '):
+            filtered_body_messages.append(msg)
+        if not msg.startswith('Laughed at '):
+            filtered_body_messages.append(msg)
+        if not msg.startswith('Liked '):
+            filtered_body_messages.append(msg)
+
+    return filtered_body_messages
+
+
+def create_data(
+    num_messages: int,
+    outfile_name: str
+):
     recent_messages = read_messages(chatdb_location, num_messages, query=QUERY)
     body_messages = []
     for msg in recent_messages:
         body_messages.append(msg['body'])
 
-    with open('linda.txt', 'w') as f:
-        for msg in body_messages:
+    filtered_body_messages = filter_data(body_messages)
+
+    with open(outfile_name, 'w') as f:
+        for msg in filtered_body_messages:
             f.write(f'{msg}\n')
 
 
 
 if __name__ == '__main__':
-    create_data(num_messages=10000)
+    create_data(num_messages=10000, outfile_name='linda.txt')
