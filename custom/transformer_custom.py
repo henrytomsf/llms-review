@@ -19,9 +19,9 @@ logger.addHandler(handler)
 
 # Hyperparameters
 BATCH_SIZE = 64
-BLOCK_SIZE = 256  # context size also called block size
-MAX_ITERS = 5000
-EVAL_INTERVAL = 500
+BLOCK_SIZE = 8  # context size also called block size
+MAX_ITERS = 100
+EVAL_INTERVAL = 20
 EVAL_ITERS = 500
 LEARNING_RATE = 3e-4
 N_EMB = 384
@@ -44,13 +44,13 @@ def read_input_data() -> str:
 text = read_input_data()
 
 tokenizer = AutoTokenizer.from_pretrained('gpt2')
-tokens = tokenizer(text, return_tensors=None)['input_ids']
+# encoder = tokenizer(text, max_length=1024, truncation=True, return_tensors=None)['input_ids']
 
 # chars = sorted(list(set(text)))
 VOCAB_SIZE = tokenizer.vocab_size
 
 # Split the data into train and test
-data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
+data = torch.tensor(tokenizer(text, max_length=1024, truncation=True)['input_ids'], dtype=torch.long)
 n = int(0.9*len(data))
 train_data = data[:n]
 val_data = data[n:]
