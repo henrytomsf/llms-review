@@ -2,7 +2,6 @@ from typing import List, Dict
 import json
 import sqlite3
 
-# Path to chat.db (adjust if needed)
 db_path = '/Users/henrytom/Library/Messages/chat.db'
 
 def fetch_messages():
