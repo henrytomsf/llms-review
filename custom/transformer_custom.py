@@ -19,7 +19,7 @@ logger.addHandler(handler)
 
 # Hyperparameters
 BATCH_SIZE = 64
-BLOCK_SIZE = 8  # context size also called block size
+BLOCK_SIZE = 32  # context size also called block size
 MAX_ITERS = 100
 EVAL_INTERVAL = 20
 EVAL_ITERS = 500
