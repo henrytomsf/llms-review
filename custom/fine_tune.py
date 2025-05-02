@@ -4,6 +4,7 @@ from datasets import load_dataset
 import torch
 
 # model_id = "mistralai/Mistral-7B-v0.1"
+full_fine_tune = False
 model_id = 'distilgpt2'
 model = AutoModelForCausalLM.from_pretrained(model_id)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -38,6 +39,23 @@ training_args = TrainingArguments(
     save_steps=500,
     logging_steps=100
 )
+
+if not full_fine_tune:
+    # Freeze all parameters
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # Unfreeze last few layers
+    num_layers_to_unfreeze = 2
+    for block in model.transformer.h[-num_layers_to_unfreeze:]:
+        for param in block.parameters():
+            param.requires_grad = True
+
+    # Unfreeze final layer norm and lm_head
+    for param in model.transformer.ln_f.parameters():
+        param.requires_grad = True
+    for param in model.lm_head.parameters():
+        param.requires_grad = True
 
 trainer = Trainer(
     model=model,
