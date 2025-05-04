@@ -2,6 +2,7 @@ from typing import List, Dict
 import json
 import sqlite3
 
+
 db_path = '/Users/henrytom/Library/Messages/chat.db'
 
 def fetch_messages():
@@ -26,6 +27,7 @@ def fetch_messages():
     conn.close()
     return messages
 
+
 def group_adjacent_messages(messages):
     grouped = []
     current_sender = 0
@@ -46,6 +48,7 @@ def group_adjacent_messages(messages):
 
     return grouped
 
+
 def create_pairings(grouped):
     json_pairs = []
     for i, grouped_obj in enumerate(grouped):
@@ -59,10 +62,12 @@ def create_pairings(grouped):
             json_pairs.append(pair)
     return json_pairs
 
+
 def write_jsonl(json_pairings: List[Dict[str, str]]):
     with open('data.jsonl', 'w') as f:
         for entry_pair in json_pairings:
             f.write(json.dumps(entry_pair) + '\n')
+
 
 def main():
     messages = fetch_messages()
@@ -72,6 +77,8 @@ def main():
     write_jsonl(json_pairings)
 
     return json_pairings
+
+
 
 if __name__ == "__main__":
     json_pairings = main()

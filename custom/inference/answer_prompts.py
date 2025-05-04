@@ -17,6 +17,7 @@ def load_model():
     model.to(device)
     return model, tokenizer
 
+
 def main(prompt: str):
     model, tokenizer = load_model()
 
@@ -38,6 +39,7 @@ def main(prompt: str):
     # Decode and print the result
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
     print("Answer:", generated_text[len(prompt):].strip())  # Remove prompt from output
+
 
 
 if __name__ == '__main__':

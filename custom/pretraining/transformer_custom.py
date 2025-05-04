@@ -65,6 +65,7 @@ def get_batch(split: str):
     x, y = x.to(DEVICE), y.to(DEVICE)
     return x, y
 
+
 # Loss function to train the bigram model
 # no_grad since we want to disable gradient calcuations to save on memory/speed esp for evaluation or inference
 @torch.no_grad()
@@ -206,6 +207,7 @@ class BigramLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)  # (B, T+1)
         return idx
 
+
 def train(model):
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     for iter in range(MAX_ITERS):
@@ -222,8 +224,6 @@ def train(model):
         optimizer.zero_grad(set_to_none=True)  # Need to do this to avoid accumulating gradients
         loss.backward()
         optimizer.step()
-
-
 
 
 

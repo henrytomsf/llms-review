@@ -98,6 +98,7 @@ def read_messages(
 def print_messages(messages):
     print(json.dumps(messages))
 
+
 def get_address_book(address_book_location):
     conn = sqlite3.connect(address_book_location)
     cursor = conn.cursor()
@@ -127,6 +128,7 @@ def get_address_book(address_book_location):
         
     new_json_output = json.dumps(json_list)
     return new_json_output
+
 
 #combine recent messages and address book data
 def combine_data(recent_messages, addressBookData):
